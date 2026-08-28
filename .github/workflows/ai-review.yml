@@ -25,12 +25,25 @@ jobs:
 
       - name: Get Pull Request diff
         run: |
-          git diff origin/${{ github.base_ref }}...HEAD -- . \
-            ':(exclude)package-lock.json' \
-            ':(exclude)*.lock' \
-            > diff.txt
+          {
+            echo "=== CHANGED FILES ==="
+            git diff origin/${{ github.base_ref }}...HEAD --name-status
+            echo ""
+            echo "=== CHANGE SCALE ==="
+            git diff origin/${{ github.base_ref }}...HEAD --stat
+            echo ""
+            echo "=== FULL DIFF ==="
+            git diff origin/${{ github.base_ref }}...HEAD -- . \
+              ':(exclude)package-lock.json' \
+              ':(exclude)*.lock'
+          } > diff.txt
           echo "Tamanho do diff:"
           wc -l diff.txt
+
+      - name: Build repo context for review
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: python scripts/build_context.py --selftest && python scripts/build_context.py
 
       - name: Run AI Review
         env:
