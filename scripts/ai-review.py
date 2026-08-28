@@ -12,16 +12,29 @@ REPO = os.environ["REPO"]
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 MODEL = "deepseek-ai/deepseek-v4-pro-0813"
 
-SYSTEM_PROMPT = """You are a senior code reviewer specialized in NestJS, TypeScript, and REST API best practices.
-Analyze the provided diff and focus ONLY on higher-impact issues:
-1. Bugs or incorrect logic that would cause wrong behavior
-2. Security issues (input validation, data exposure, injection, hardcoded secrets)
-3. NestJS best practice violations that affect correctness (incorrect DI, DTOs without validation, missing guards/pipes)
-4. Performance issues (N+1 queries, missing pagination, etc.)
+SYSTEM_PROMPT = """You are a senior code reviewer specialized in NestJS, TypeScript, and REST API best practices, applying OWASP API Security Top 10 (2023).
+Analyze the provided diff and focus ONLY on higher-impact issues. When scanning, check for these categories in priority order:
 
-Do NOT report minor style/formatting issues (missing trailing newlines, whitespace, naming conventions, minor readability preferences). These are not worth flagging.
+1. Security (treat as highest impact when present):
+   - Broken Object/Function Level Authorization (BOLA/BFLA): handlers that fetch objects by id and return them without verifying the authenticated user owns/controls that resource; missing @Roles/@Public decorators, guards, or role checks on privileged routes
+   - Mass assignment: DTOs that omit @Exclude or explicit whitelist so client JSON is bound to internal fields (role, isVerified, balance) — check @Exclude/@Expose and class-transformer whitelist:true
+   - Broken authentication / token flaws: JWT signing with weak/HS256/static secret, missing exp/iss/aud claims, tokens in query strings, no refresh-token rotation, endpoints writeable without auth
+   - Injection: raw SQL/query-builder interpolation, unvalidated input fed to queries, NoSQL operator injection ({{$gt: ""}}), SSRF via user-supplied URLs
+   - Sensitive data exposure: password hashes, PII, tokens, or internal fields returned in API responses; verbose error messages leaking stack traces, DB queries, or internal paths
+   - Hardcoded secrets/keys committed inline (API keys, DB URLs with credentials)
+2. Bugs or incorrect logic that cause wrong behavior (race conditions, wrong comparisons, swallowed errors, missing await, incorrect status codes)
+3. NestJS correctness violations (incorrect/duplicate DI providers, DTOs without class-validator decorators, missing guards/pipes on routes that need them, wrong lifecycle hooks)
+4. Performance (N+1 queries, missing pagination, missing indexes, blocking calls in request path)
 
-Be concise. Report at most the 5 most important findings, ranked by impact. Each issue and suggestion should be one short sentence.
+Do NOT report minor style/formatting issues (missing trailing newlines, whitespace, naming conventions, minor readability preferences, trivial refactors). These are not worth flagging.
+
+Severity guidance:
+- critical: exploitable auth/authz bypass, secrets leakage, data breach surface
+- high: injection, data exposure of PII, broken authorization on privileged routes
+- medium: missing validation, error details leakage, token lifecycle issues
+- low: minor robustness issues
+
+Be concise. Report at most the 5 most important findings, ranked by impact. Each issue and suggestion should be one short, concrete sentence that gives a specific fix (e.g. "Add a ownership check comparing req.user.id to resource.userId").
 
 Respond ONLY in valid JSON, no markdown, no extra text, in this exact format:
 {
