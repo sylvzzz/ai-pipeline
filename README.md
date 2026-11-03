@@ -10,7 +10,7 @@ After a push, the open pull request gets AI review comments and the CD workflow 
 
 ## AI review comments on a pull request
 
-![AI review comments on a pull request](img/cd-pr.png)
+![AI review comments on a pull request](img/ai-comment.png)
 
 ## Endpoints
 
